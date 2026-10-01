@@ -10,7 +10,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 COPY textkit ./textkit
 
 # --- рантайм: только Python, venv и код, без uv и dev-зависимостей ---
-FROM python:3.13-slim-bookworm
+FROM python:3.14-slim-bookworm
 ARG APP_VERSION=dev
 ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1 APP_VERSION=$APP_VERSION
 RUN useradd --create-home --uid 1000 app

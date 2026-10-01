@@ -87,8 +87,10 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: production
-      url: ${{ steps.deploy.outputs.url }}
+      url: ${{ env.PRODUCTION_URL }}
     env:
+      # Публичный адрес. Уникальные URL деплоев закрыты авторизацией Vercel (302).
+      PRODUCTION_URL: https://textkit-nine.vercel.app
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
@@ -104,9 +106,15 @@ jobs:
         if: env.SKIP != '1'
         run: |
           npx --yes vercel@latest pull --yes --environment=production --token="$VERCEL_TOKEN"
-          url=$(npx --yes vercel@latest deploy --prod --token="$VERCEL_TOKEN" \
-                --build-env APP_VERSION=${{ github.sha }} --env APP_VERSION=${{ github.sha }})
-          echo "url=$url" >> "$GITHUB_OUTPUT"
+          npx --yes vercel@latest deploy --prod --token="$VERCEL_TOKEN" \
+            --env APP_VERSION=${{ github.sha }}
       - name: Smoke-тест продакшена
         if: env.SKIP != '1'
-        run: curl -fsS "${{ steps.deploy.outputs.url }}/health"
+        run: |
+          # Проверяем, что по публичному адресу отвечает именно новая версия
+          for i in $(seq 1 10); do
+            body=$(curl -fsS "$PRODUCTION_URL/health") && echo "$body"
+            echo "$body" | grep -q '"version":"${{ github.sha }}"' && exit 0
+            sleep 3
+          done
+          echo "::error::Продакшен не отдаёт версию ${{ github.sha }}"; exit 1
